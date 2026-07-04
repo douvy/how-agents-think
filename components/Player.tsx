@@ -36,6 +36,67 @@ function chaptersOf(scenario: Scenario): { at: number; label: string }[] {
   return out;
 }
 
+// Narration — the subtitle track. Plain English for people who don't read
+// tool calls. Derived from the last narratable event, so scrubbing rewrites
+// it like captions. Sans voice: serif is the agent's, mono is the machine's,
+// this line is ours.
+const TOOL_NARRATION: Record<string, string> = {
+  bash: "It runs a command and waits on the machine.",
+  read: "It opens a file to see what's actually there.",
+  edit: "It changes the code.",
+  grep: "It searches the codebase for clues.",
+};
+
+function narrationOf(
+  scenario: Scenario,
+  lastEventIndex: number,
+): { at: number; text: string } {
+  let plans = 0;
+  let out = { at: 0, text: "An agent is about to work through a real task." };
+  for (let i = 0; i <= lastEventIndex; i++) {
+    const e = scenario.events[i];
+    switch (e.type) {
+      case "plan":
+        plans++;
+        out = {
+          at: e.at,
+          text:
+            plans === 1
+              ? "First, it writes itself a plan."
+              : "It writes a new plan — a different approach this time.",
+        };
+        break;
+      case "thought":
+        out = { at: e.at, text: "It reasons out loud before acting." };
+        break;
+      case "tool_call":
+        out = { at: e.at, text: TOOL_NARRATION[e.tool] ?? "It reaches for a tool." };
+        break;
+      case "tool_result":
+        out = {
+          at: e.at,
+          text: e.ok
+            ? "The result comes back clean. It keeps moving."
+            : "That didn't work. Watch its face.",
+        };
+        break;
+      case "plan_dead":
+        out = { at: e.at, text: "The plan was built on a bad guess — it abandons it." };
+        break;
+      case "compact":
+        out = {
+          at: e.at,
+          text: "Its memory is nearly full, so it compresses what it knows.",
+        };
+        break;
+      case "done":
+        out = { at: e.at, text: "Finished. Scrub back to see how it got here." };
+        break;
+    }
+  }
+  return out;
+}
+
 const TOOL_ICONS: Record<string, typeof Terminal> = {
   bash: Terminal,
   read: FileText,
@@ -167,10 +228,11 @@ function StreamBlock({ block, ms }: { block: Block; ms: number }) {
       : enterStyle(ms, block.at);
 
   if (block.kind === "thought") {
+    // Inner monologue — the human register, serif italic against tool mono.
     return (
       <div
         style={wrap}
-        className="border-l border-border py-0.5 pl-3 text-[13px] leading-relaxed text-foreground"
+        className="border-l border-border py-0.5 pl-3 font-serif text-[15px] leading-relaxed text-foreground italic"
       >
         {block.text}
       </div>
@@ -229,7 +291,9 @@ function StreamBlock({ block, ms }: { block: Block; ms: number }) {
     >
       <Corners />
       <div className="label mb-1">done</div>
-      <div className="font-mono text-[13px] text-header-text">{block.verdict}</div>
+      <div className="font-serif text-[17px] text-header-text italic">
+        {block.verdict}
+      </div>
     </div>
   );
 }
@@ -295,6 +359,10 @@ export function Player() {
   const scenario = scenarios[idx];
   const state = useMemo(() => stateAt(scenario, ms), [scenario, ms]);
   const chapters = useMemo(() => chaptersOf(scenario), [scenario]);
+  const narration = useMemo(
+    () => narrationOf(scenario, state.lastEventIndex),
+    [scenario, state.lastEventIndex],
+  );
   const streamRef = useRef<HTMLDivElement>(null);
   const ended = ms >= scenario.durationMs;
 
@@ -398,43 +466,113 @@ export function Player() {
   };
 
   return (
-    <div className="w-full">
-      {/* Scenario tabs */}
-      <div className="flex items-stretch border-x border-t border-border bg-background">
-        {scenarios.map((sc, i) => (
-          <button
-            key={sc.id}
-            onClick={() => select(i)}
-            className={`relative flex items-center gap-2 border-r border-border px-4 py-2.5 font-mono text-[11px] tracking-wide uppercase transition-colors ${
-              i === idx
-                ? "bg-surface text-header-text"
-                : "text-[#5c6070] hover:bg-hover-bg hover:text-muted"
-            }`}
-          >
-            {i === idx && (
-              <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-accent" />
-            )}
-            <kbd
-              className={`inline-flex h-4 w-4 items-center justify-center border text-[9px] ${
-                i === idx ? "border-accent/50 text-accent" : "border-border text-[#5c6070]"
-              }`}
+    <>
+      {/* Hero — live. The mascot and the narration line run off the same
+          (scenario, ms) as the window below; the display type stays still. */}
+      <header className="relative border-b border-[#1a1a1a] px-5 py-12 md:px-10 md:py-14">
+        {/* registration marks on the bottom rule — drafting-table signature */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -bottom-[7px] -left-[4px] font-mono text-[9px] leading-none text-[#3d3d3d] select-none"
+        >
+          +
+        </span>
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -right-[4px] -bottom-[7px] font-mono text-[9px] leading-none text-[#3d3d3d] select-none"
+        >
+          +
+        </span>
+        <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="label mb-4">interactive explainer</p>
+            <h1 className="text-[42px] leading-[1.04] font-bold tracking-tight text-header-text md:text-[64px]">
+              Watch an AI
+              <br />
+              agent think
+            </h1>
+            <p className="mt-5 flex max-w-sm items-start gap-2 font-mono text-[11px] leading-relaxed text-[#5c6070]">
+              <span aria-hidden className="mt-[5px] h-1 w-1 shrink-0 bg-accent" />
+              No model behind this page — every run is a hand-written script
+              you can scrub.
+            </p>
+          </div>
+          {/* Live readout — the mascot and narration track the run below.
+              Fixed width on md so the column never resizes with the text. */}
+          <div className="flex shrink-0 flex-col gap-3 md:w-[300px]">
+            <div className="flex items-center justify-between">
+              <span className="label flex items-center gap-1.5">
+                <span aria-hidden className="h-1 w-1 bg-accent" />
+                live
+              </span>
+              <span className="font-mono text-[10px] text-[#3d3d3d]">
+                fig. {String(idx + 1).padStart(2, "0")}
+              </span>
+            </div>
+            <Creature state={state} ms={ms} size={44} />
+            {/* min-h reserves two lines so the mascot doesn't bounce as the
+                line wraps differently each beat */}
+            <p
+              className="min-h-[2.6em] max-w-md text-[14px] leading-snug text-foreground md:text-[15px]"
+              style={narration.at > 0 ? enterStyle(ms, narration.at) : undefined}
             >
-              {i + 1}
-            </kbd>
-            {sc.title}
-          </button>
-        ))}
-      </div>
+              {narration.text}
+            </p>
+          </div>
+        </div>
+      </header>
 
-      {/* Player shell */}
+      <div className="flex-1 px-4 py-10 md:px-10">
+      {/* Player shell — window anatomy: title bar, tabs, task, panels, status */}
       <div className="relative border border-border bg-background">
         <Corners />
 
-        {/* Task bar — the creature is the agent; its face derives from (state, ms) */}
+        {/* Title bar */}
+        <div className="relative flex items-center border-b border-border px-3 py-2">
+          <div className="flex items-center gap-1.5" aria-hidden>
+            <span className="h-[7px] w-[7px] rounded-full border border-[#3d3d3d]" />
+            <span className="h-[7px] w-[7px] rounded-full border border-[#3d3d3d]" />
+            <span className="h-[7px] w-[7px] rounded-full border border-[#3d3d3d]" />
+          </div>
+          <span className="absolute left-1/2 -translate-x-1/2 font-mono text-[10px] text-[#5c6070]">
+            data/{scenario.id}.ts
+          </span>
+          <span className="ml-auto font-mono text-[9px] tracking-[0.09em] text-[#3d3d3d] uppercase">
+            read-only
+          </span>
+        </div>
+
+        {/* Scenario tabs */}
+        <div className="flex items-stretch border-b border-border">
+          {scenarios.map((sc, i) => (
+            <button
+              key={sc.id}
+              onClick={() => select(i)}
+              className={`relative flex items-center gap-2 border-r border-border px-4 py-2.5 font-mono text-[11px] tracking-wide uppercase transition-colors ${
+                i === idx
+                  ? "bg-surface text-header-text"
+                  : "text-[#5c6070] hover:bg-hover-bg hover:text-muted"
+              }`}
+            >
+              {i === idx && (
+                <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-accent" />
+              )}
+              <kbd
+                className={`inline-flex h-4 w-4 items-center justify-center border text-[9px] ${
+                  i === idx ? "border-accent/50 text-accent" : "border-border text-[#5c6070]"
+                }`}
+              >
+                {i + 1}
+              </kbd>
+              {sc.title}
+            </button>
+          ))}
+        </div>
+
+        {/* Task bar */}
         <div className="flex items-center gap-3 border-b border-border px-4 py-2.5">
-          <Creature state={state} ms={ms} />
           <span className="label">task</span>
-          <span className="truncate font-mono text-[13px] text-header-text">
+          <span className="min-w-0 truncate font-mono text-[13px] text-header-text">
             {scenario.task}
           </span>
           <span className="ml-auto hidden shrink-0 font-mono text-[10px] text-[#5c6070] md:block">
@@ -444,7 +582,10 @@ export function Player() {
 
         <div className="grid md:grid-cols-[260px_1fr_200px] md:divide-x md:divide-[#252525] max-md:divide-y max-md:divide-[#252525]">
           {/* Mind */}
-          <section className="flex flex-col max-md:order-1">
+          {/* min-w-0 on every grid section: grid children default to
+              min-width auto, so one long tool line would blow the tracks
+              out past the player border */}
+          <section className="flex min-w-0 flex-col max-md:order-1">
             <div className="flex items-center justify-between border-b border-border px-4 py-1.5">
               <span className="label">mind</span>
               <span className="font-mono text-[10px] text-[#5c6070]">
@@ -469,7 +610,7 @@ export function Player() {
           </section>
 
           {/* Action stream */}
-          <section className="flex flex-col max-md:order-3">
+          <section className="flex min-w-0 flex-col max-md:order-3">
             <div className="flex items-center justify-between border-b border-border px-4 py-1.5">
               <span className="label">action stream</span>
               <span className="font-mono text-[10px] text-[#5c6070]">
@@ -490,7 +631,7 @@ export function Player() {
           </section>
 
           {/* Context gauge — stats cell */}
-          <section className="flex flex-col max-md:order-2">
+          <section className="flex min-w-0 flex-col max-md:order-2">
             <div className="flex items-center justify-between border-b border-border px-4 py-1.5">
               <span className="label">context</span>
               <span className="font-mono text-[10px] text-[#5c6070]">
@@ -504,8 +645,11 @@ export function Player() {
               <div className="font-mono text-[10px] text-[#5c6070] md:mt-1 md:text-[11px]">
                 / {CONTEXT_BUDGET.toLocaleString()} tokens
               </div>
-              <div className="h-1 flex-1 bg-hover-bg md:mt-3 md:w-full md:flex-none">
+              <div className="relative h-1 flex-1 bg-hover-bg md:mt-3 md:w-full md:flex-none">
                 <div className={`h-full ${gaugeColor}`} style={{ width: `${pct * 100}%` }} />
+                {/* threshold notches: warning at 75%, danger at 90% */}
+                <span aria-hidden className="absolute top-0 left-3/4 h-full w-px bg-[#3d3d3d]" />
+                <span aria-hidden className="absolute top-0 left-[90%] h-full w-px bg-[#3d3d3d]" />
               </div>
             </div>
           </section>
@@ -539,9 +683,6 @@ export function Player() {
           <span className="w-20 shrink-0 text-right font-mono text-[11px] text-muted">
             {(ms / 1000).toFixed(1)} / {(scenario.durationMs / 1000).toFixed(0)}s
           </span>
-          <kbd className="hidden h-4 items-center border border-border px-1 font-mono text-[9px] text-[#5c6070] md:inline-flex">
-            space
-          </kbd>
         </div>
 
         {/* Chapters */}
@@ -564,11 +705,44 @@ export function Player() {
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 {ch.label}
+                {active && (
+                  <span className="text-[#5c6070]">@{(ch.at / 1000).toFixed(1)}s</span>
+                )}
               </button>
             );
           })}
         </div>
+
+        {/* Status bar */}
+        <div className="flex items-center justify-between border-t border-border px-3 py-1.5 font-mono text-[10px]">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 text-muted">
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 rounded-full ${
+                  ended
+                    ? "border border-accent"
+                    : playing
+                      ? "bg-accent"
+                      : "bg-[#5c6070]"
+                }`}
+              />
+              {ended ? "done" : playing ? "playing" : "paused"}
+            </span>
+            <span aria-hidden className="text-[#3d3d3d]">
+              ·
+            </span>
+            <span className="text-[#5c6070]">
+              run {String(idx + 1).padStart(2, "0")} /{" "}
+              {String(scenarios.length).padStart(2, "0")}
+            </span>
+          </div>
+          <span className="hidden text-[#5c6070] md:block">
+            space play · ← → scrub · 1–3 runs
+          </span>
+        </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

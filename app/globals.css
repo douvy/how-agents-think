@@ -33,6 +33,7 @@
 
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
+  --font-serif: var(--font-instrument-serif);
 }
 
 html {
@@ -47,14 +48,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   /* Steady numerals — timers and gauges don't jitter */
   font-variant-numeric: tabular-nums;
-}
-
-/* Blueprint grid — the drafting table everything sits on. Static, no motion. */
-.blueprint {
-  background-image:
-    linear-gradient(to right, #0d0d0d 1px, transparent 1px),
-    linear-gradient(to bottom, #0d0d0d 1px, transparent 1px);
-  background-size: 48px 48px;
 }
 
 /* Fix mobile touch delays */
@@ -72,7 +65,7 @@ a {
 .label {
   font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: #5c6070;
 }
