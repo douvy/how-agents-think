@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { scenarios } from "@/data";
 import { Creature, CreatureTriumph } from "@/components/Creature";
-import { chirp } from "@/lib/sound";
+import { chirp, unlock } from "@/lib/sound";
 import { createSpring, presets } from "@/lib/spring";
 import {
   stateAt,
@@ -488,9 +488,10 @@ export function Player() {
     prevTokens: number;
   } | null>(null);
   const [rewriteT, setRewriteT] = useState(0);
-  // The mascot's voice — on by default (the AudioContext still waits for
-  // the first click, so the browser's gesture rule is satisfied by
-  // pressing play). Toggle lives in the status bar.
+  // The mascot's voice — on by default. The AudioContext can't start
+  // itself: unlock() runs inside the gestures that begin playback (play
+  // button, tab select, the toggle), which is what iOS Safari requires.
+  // Toggle lives in the status bar.
   const [sound, setSound] = useState(true);
   // Which runs this reader has seen through to done — session memory for
   // the tab ticks, so the trilogy reads as collectible. Meta-state like the
@@ -744,6 +745,7 @@ export function Player() {
   const select = useCallback(
     (i: number) => {
       if (i === idx) return;
+      if (sound) unlock(); // unvisited runs autoplay — this tap is the gesture
       setRewrite(null);
       parkedRef.current[idx] = { ms, choices };
       const parked = parkedRef.current[i];
@@ -752,7 +754,7 @@ export function Player() {
       setChoices(parked?.choices ?? {});
       setPlaying(!parked);
     },
-    [idx, ms, choices],
+    [idx, ms, choices, sound],
   );
 
   // Keyboard: ←/→ scrub ±2s, space toggles play, 1-3 pick a run.
@@ -1228,6 +1230,7 @@ export function Player() {
         <div className="flex items-center gap-2 border-t border-border px-4 py-2 max-md:sticky max-md:bottom-0 max-md:z-20 max-md:bg-well">
           <button
             onClick={() => {
+              if (sound) unlock(); // iOS: the context must start in this tap
               setRewrite(null);
               if (ended) {
                 setMs(0);
@@ -1346,7 +1349,10 @@ export function Player() {
                 it's audible the moment it's on */}
             <button
               onClick={() => {
-                if (!sound) chirp("ask");
+                if (!sound) {
+                  unlock();
+                  chirp("ask");
+                }
                 setSound(!sound);
               }}
               aria-pressed={sound}

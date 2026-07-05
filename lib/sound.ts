@@ -44,6 +44,18 @@ function blip(
   osc.stop(t + dur + 0.02);
 }
 
+// iOS unlock. Two Safari rules the lazy context breaks: (1) an
+// AudioContext only starts inside a real tap's call stack — the chirp
+// effect runs after render, so on iPhone the context stayed suspended
+// forever; (2) the ring/silent switch mutes WebAudio unless the session
+// declares itself playback. Called from the gestures that start playback.
+export function unlock() {
+  const session = (navigator as Navigator & { audioSession?: { type: string } })
+    .audioSession;
+  if (session) session.type = "playback";
+  ensure();
+}
+
 export type Chirp = "move" | "ok" | "fail" | "ask" | "compact" | "done" | "fanfare";
 
 // Footsteps random-walk a pentatonic scale — every step lands on a
