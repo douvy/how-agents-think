@@ -7,7 +7,7 @@ import type { Scenario } from "@/lib/timeline";
 
 export const recovery: Scenario = {
   id: "recovery",
-  title: "The Recovery",
+  title: "A Plan Fails",
   task: "/api/orders is returning 500s — fix it.",
   lesson: "recovery means distrusting your plan",
   durationMs: 58000,

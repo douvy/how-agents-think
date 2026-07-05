@@ -7,7 +7,7 @@ import type { Scenario } from "@/lib/timeline";
 
 export const pressure: Scenario = {
   id: "pressure",
-  title: "The Pressure",
+  title: "Memory Fills Up",
   task: "Rename getUser → fetchUser across the codebase — 14 files.",
   lesson: "long tasks are won by forgetting well",
   durationMs: 60000,
@@ -21,7 +21,7 @@ export const pressure: Scenario = {
     { at: 2000, tokensAfter: 810, type: "step_active", planId: "p1", step: 0 },
     { at: 3000, tokensAfter: 860, type: "tool_call", id: "t1", tool: "grep", input: "getUser\\( — src/**" },
     { at: 5500, tokensAfter: 1600, type: "tool_result", callId: "t1", ok: true,
-      output: "41 call sites across 14 files" },
+      output: "53 call sites across 14 files" },
     { at: 6500, tokensAfter: 1610, type: "step_done", planId: "p1", step: 0 },
     { at: 7000, tokensAfter: 1620, type: "step_active", planId: "p1", step: 1 },
     { at: 8500, tokensAfter: 1670, type: "tool_call", id: "t2", tool: "edit",
