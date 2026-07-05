@@ -855,11 +855,12 @@ export function Player() {
           Watch how an AI agent thinks
         </h1>
 
-        {/* Live marquee — centered as a unit. Mobile stacks (mascot, chip,
-            line); desktop puts the mascot inline with the text. The text
-            column is fixed-width on desktop so the centered group never
-            changes width — no sliding as the line length changes. */}
-        <div className="mt-3 flex flex-col items-center gap-2.5 md:mt-4 md:flex-row md:justify-center md:gap-3">
+        {/* Live marquee — desktop only: on phones the storyteller folds
+            into the window (see the mobile strip below the task bar), so
+            narration and the stream it describes share one screen. The
+            text column is fixed-width so the centered group never changes
+            width — no sliding as the line length changes. */}
+        <div className="mt-4 hidden items-center justify-center gap-3 md:flex">
           <Creature state={state} ms={ms} size={56} />
           {/* min-h reserves two lines so the layout doesn't bounce as the
               line wraps differently each beat */}
@@ -889,7 +890,10 @@ export function Player() {
       {/* Player shell — window anatomy: title bar, tabs, task, panels, status.
           Chrome on surface, content wells on well: the window reads as a
           warm tonal object on the black page, Zed-style. */}
-      <div className="overflow-hidden rounded-lg border border-border bg-well">
+      {/* overflow-clip, not hidden: clip still trims children to the
+          rounded corners, but unlike hidden it doesn't create a scroll
+          container — which would silently kill the mobile sticky transport */}
+      <div className="overflow-clip rounded-lg border border-border bg-well">
         {/* Title bar — chrome rows are surface, content wells stay black:
             the banding does the sectioning so text doesn't have to */}
         {/* inset highlight on the top edge — the machined-metal glint dark
@@ -1026,12 +1030,37 @@ export function Player() {
           </span>
         </div>
 
+        {/* Mobile storyteller — the hero marquee, folded into the machine:
+            mascot and narration sit directly above the stream so the story
+            reads as one column on a phone. Same (state, ms) as everything. */}
+        <div className="flex items-center gap-3 border-b border-border px-4 py-2.5 md:hidden">
+          <Creature state={state} ms={ms} size={32} />
+          {/* min-h reserves two lines so the strip doesn't bounce as lines wrap */}
+          <p
+            className={`min-h-[2.5em] flex-1 font-serif text-[14px] leading-tight ${
+              yourCall ? "text-human" : "text-accent-light"
+            }`}
+            style={
+              rewrite
+                ? enterStyle(rewriteT, REWRITE.enterAt)
+                : shownNarration.at > 0
+                  ? enterStyle(ms, shownNarration.at)
+                  : undefined
+            }
+          >
+            {shownNarration.text}
+          </p>
+        </div>
+
         <div className="grid md:grid-cols-[260px_1fr_200px] md:divide-x md:divide-border max-md:divide-y max-md:divide-border">
           {/* Mind */}
           {/* min-w-0 on every grid section: grid children default to
               min-width auto, so one long tool line would blow the tracks
               out past the player border */}
-          <section className="flex min-w-0 flex-col max-md:order-1">
+          {/* mobile order: the stream is the story, so it leads; memory
+              rides under it; the plan — narrated by the stream anyway —
+              goes last and hugs its content */}
+          <section className="flex min-w-0 flex-col max-md:order-3">
             <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-1.5">
               <span className="label">plan</span>
               <span className="font-mono text-[10px] text-[#a9adb6]">
@@ -1040,7 +1069,7 @@ export function Player() {
                   : `${state.plans.length} plan${state.plans.length > 1 ? "s" : ""}`}
               </span>
             </div>
-            <div className="min-h-[120px] flex-1 space-y-5 p-4 md:min-h-[320px]">
+            <div className="flex-1 space-y-5 p-4 md:min-h-[320px]">
               {state.plans.map((plan, i) => (
                 <Plan
                   key={plan.planId}
@@ -1056,7 +1085,7 @@ export function Player() {
           </section>
 
           {/* Action stream */}
-          <section className="flex min-w-0 flex-col max-md:order-3">
+          <section className="flex min-w-0 flex-col max-md:order-1">
             <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-1.5">
               <span className="label">actions</span>
               <span className="font-mono text-[10px] text-[#a9adb6]">
@@ -1065,7 +1094,7 @@ export function Player() {
             </div>
             <div
               ref={streamRef}
-              className="max-h-[240px] min-h-[160px] space-y-3 overflow-y-auto p-4 md:max-h-[320px] md:min-h-[320px]"
+              className="max-h-[45vh] min-h-[180px] space-y-3 overflow-y-auto p-4 md:max-h-[320px] md:min-h-[320px]"
             >
               {streamItems.map((it) =>
                 it.exitDelay !== undefined ? (
@@ -1193,8 +1222,10 @@ export function Player() {
 
         {/* Transport — ▶ is the one input. The run parks itself at each
             decision; while a question waits, play disables and the
-            scrubber clamps. Answering is the only way forward. */}
-        <div className="flex items-center gap-2 border-t border-border px-4 py-2">
+            scrubber clamps. Answering is the only way forward. Sticky on
+            mobile: play is on screen at landing and stays in thumb reach
+            while the story scrolls. */}
+        <div className="flex items-center gap-2 border-t border-border px-4 py-2 max-md:sticky max-md:bottom-0 max-md:z-20 max-md:bg-well">
           <button
             onClick={() => {
               setRewrite(null);

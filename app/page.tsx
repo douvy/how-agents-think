@@ -5,8 +5,11 @@ import { Player } from "@/components/Player";
 // — the page reads as one instrument, not a poster above a demo.
 
 export default function Home() {
+  // overflow-x-clip, not -hidden: hidden forces overflow-y to auto, which
+  // makes this div a scroll container and silently disables the transport's
+  // position:sticky on mobile. clip just clips.
   return (
-    <div className="min-h-screen overflow-x-hidden">
+    <div className="min-h-screen overflow-x-clip">
       <div className="mx-auto flex min-h-screen max-w-5xl flex-col border-x border-[#1a1a1a]">
         <Player />
         <footer className="relative flex items-baseline justify-between px-5 py-4 md:px-10">
