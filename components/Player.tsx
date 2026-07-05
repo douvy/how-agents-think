@@ -863,7 +863,13 @@ export function Player() {
             text column is fixed-width so the centered group never changes
             width — no sliding as the line length changes. */}
         <div className="mt-4 hidden items-center justify-center gap-3 md:flex">
-          <Creature state={state} ms={ms} size={56} />
+          {/* trilogy done: the storyteller wears the finale card's crown —
+              same rule as the card, only while parked at the end frame */}
+          {state.done && trilogy ? (
+            <CreatureTriumph size={56} />
+          ) : (
+            <Creature state={state} ms={ms} size={56} />
+          )}
           {/* min-h reserves two lines so the layout doesn't bounce as the
               line wraps differently each beat */}
           {/* the marquee speaks mint in the agent's voice; when the question
@@ -1036,7 +1042,11 @@ export function Player() {
             mascot and narration sit directly above the stream so the story
             reads as one column on a phone. Same (state, ms) as everything. */}
         <div className="flex items-center gap-3 border-b border-border px-4 py-2.5 md:hidden">
-          <Creature state={state} ms={ms} size={32} />
+          {state.done && trilogy ? (
+            <CreatureTriumph size={32} />
+          ) : (
+            <Creature state={state} ms={ms} size={32} />
+          )}
           {/* min-h reserves two lines so the strip doesn't bounce as lines
               wrap; flex items-center keeps one-liners vertically centered
               inside that reserved box */}
