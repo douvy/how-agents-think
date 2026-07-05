@@ -196,6 +196,15 @@ function StreamBlock({ block, ms }: { block: Block; ms: number }) {
   const squeeze = 1 - settle(ms, absorbedAt, gentle); // 1 → 0
   if (absorbedAt !== undefined && squeeze <= 0.001) return null;
 
+  // Teleprompter: a block recedes a few seconds after its moment passes so
+  // the eye always knows where "now" is. Pure function of ms — scrub back
+  // and it re-brightens. The done card never recedes.
+  const lastActivity =
+    block.kind === "tool" ? (block.resultAt ?? block.at) : block.at;
+  const recede =
+    block.kind === "done" ? 0 : clamp01((ms - lastActivity - 5000) / 1200);
+  const dim = 1 - 0.5 * recede;
+
   const wrap: React.CSSProperties =
     absorbedAt !== undefined
       ? {
@@ -203,7 +212,10 @@ function StreamBlock({ block, ms }: { block: Block; ms: number }) {
           maxHeight: `${clamp01(squeeze) * 120}px`,
           overflow: "hidden",
         }
-      : enterStyle(ms, block.at);
+      : (() => {
+          const s = enterStyle(ms, block.at);
+          return { ...s, opacity: (s.opacity as number) * dim };
+        })();
 
   if (block.kind === "thought") {
     // Inner monologue — the human register, serif italic against tool mono.
@@ -226,7 +238,7 @@ function StreamBlock({ block, ms }: { block: Block; ms: number }) {
         <div className="flex items-center gap-2 text-muted">
           <Icon size={12} className="shrink-0 text-link/70" />
           <span className="text-link">{block.tool}</span>
-          <span className="truncate text-foreground">{block.input}</span>
+          <span className="truncate text-muted">{block.input}</span>
         </div>
         {block.pending ? (
           <div className="mt-1 pl-5 text-[11px] text-[#636a76]">running…</div>
@@ -568,7 +580,7 @@ export function Player() {
               out past the player border */}
           <section className="flex min-w-0 flex-col max-md:order-1">
             <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-1.5">
-              <span className="label">mind</span>
+              <span className="label">plan</span>
               <span className="font-mono text-[10px] text-[#636a76]">
                 {state.plans.length === 0
                   ? "—"
@@ -593,7 +605,7 @@ export function Player() {
           {/* Action stream */}
           <section className="flex min-w-0 flex-col max-md:order-3">
             <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-1.5">
-              <span className="label">action stream</span>
+              <span className="label">actions</span>
               <span className="font-mono text-[10px] text-[#636a76]">
                 {state.lastEventIndex + 1}/{scenario.events.length} events
               </span>
@@ -614,7 +626,7 @@ export function Player() {
           {/* Context gauge — stats cell */}
           <section className="flex min-w-0 flex-col max-md:order-2">
             <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-1.5">
-              <span className="label">context</span>
+              <span className="label">memory</span>
               <span className="font-mono text-[10px] text-[#636a76]">
                 {Math.round(pct * 100)}%
               </span>
@@ -647,7 +659,11 @@ export function Player() {
                 setPlaying((p) => !p);
               }
             }}
-            className="flex h-7 w-7 shrink-0 items-center justify-center border border-border text-muted hover:border-[#4d525e] hover:text-header-text"
+            className={`flex h-7 w-7 shrink-0 items-center justify-center border ${
+              playing
+                ? "border-border text-muted hover:border-[#4d525e] hover:text-header-text"
+                : "border-accent bg-accent text-[#16181d] hover:bg-accent/80"
+            }`}
             aria-label={ended ? "replay" : playing ? "pause" : "play"}
           >
             {ended ? <RotateCcw size={12} /> : playing ? <Pause size={12} /> : <Play size={12} />}
