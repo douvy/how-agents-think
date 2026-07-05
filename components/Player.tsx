@@ -963,9 +963,34 @@ export function Player() {
                 run {String(i + 1).padStart(2, "0")}
               </span>
               <span className="max-sm:hidden">{sc.title}</span>
-              {/* watched tick — the trilogy is collectible */}
+              {/* watched stamp — the trilogy is collectible. A chip, not a
+                  bare tick, so it reads at tab-rail distance; on the run
+                  being completed it springs in with an overshoot pop while
+                  a mint wash crosses the tab and fades. Pure f(ms): the
+                  ceremony replays on every landing, un-happens on scrub. */}
               {watched.includes(i) && (
-                <Check size={10} className="text-accent" strokeWidth={3} />
+                <span
+                  className="flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-[3px] border border-accent/40 bg-accent/15 text-accent"
+                  style={{
+                    transform: `scale(${
+                      i === idx && state.done
+                        ? settle(ms, state.lastEventAt + 250)
+                        : 1
+                    })`,
+                  }}
+                >
+                  <Check size={9} strokeWidth={3} />
+                </span>
+              )}
+              {i === idx && state.done && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 bg-accent"
+                  style={{
+                    opacity:
+                      0.15 * (1 - clamp01(settle(ms, state.lastEventAt + 250, gentle))),
+                  }}
+                />
               )}
             </button>
           ))}
