@@ -1215,10 +1215,22 @@ export function Player() {
               setMs(next);
             }}
           />
-          {/* current time bright, total dim — the number that moves leads */}
+          {/* current time bright, total dim — the number that moves leads.
+              During a dwell the clock is parked, and on a phone the status
+              bar (which says "reading") sits below this sticky transport —
+              off screen. So the frozen readout itself confesses: it swaps
+              to a pulsing "reading" for the park, mobile only. Desktop
+              keeps the status bar as the single voice. */}
           <span className="w-20 shrink-0 text-right font-mono text-[11px]">
-            <span className="text-[#dcdfe3]">{(ms / 1000).toFixed(1)}</span>
-            <span className="text-[#a9adb9]"> / {(scenario.durationMs / 1000).toFixed(0)}s</span>
+            {reading && (
+              <span className="text-accent motion-safe:animate-pulse md:hidden">
+                reading
+              </span>
+            )}
+            <span className={reading ? "max-md:hidden" : ""}>
+              <span className="text-[#dcdfe3]">{(ms / 1000).toFixed(1)}</span>
+              <span className="text-[#a9adb9]"> / {(scenario.durationMs / 1000).toFixed(0)}s</span>
+            </span>
           </span>
         </div>
 
