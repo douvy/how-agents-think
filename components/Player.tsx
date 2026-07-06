@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { scenarioSets, type Mode } from "@/data";
 import { Creature, CreatureTriumph } from "@/components/Creature";
+import { Finale } from "@/components/Finale";
 import { FinaleBurst } from "@/components/FinaleBurst";
 import { Plan } from "@/components/Plan";
 import { Scrubber } from "@/components/Scrubber";
@@ -599,6 +600,16 @@ export function Player() {
           .filter((_, i) => i !== idx)
       : undefined;
 
+  // Trilogy takeover — the machine's own end screen. Once the set is
+  // complete, every done end-frame folds the three working panels away
+  // and the finale fills their region (see components/Finale.tsx — no
+  // modal: the ending lives inside the timeline, so dragging back
+  // un-happens it). Two phases, pure f(ms): the grid fades over ~half a
+  // second, then the finale mounts and staggers in. Scrub back past the
+  // done beat and the panels return instantly.
+  const takeover = state.done && trilogy;
+  const showFinale = takeover && ms >= state.lastEventAt + 500;
+
   const pct = clamp01(displayTokens / CONTEXT_BUDGET);
   const gaugeColor =
     pct > 0.9 ? "bg-accent-negative" : pct > 0.75 ? "bg-warning" : "bg-accent";
@@ -915,7 +926,50 @@ export function Player() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-[260px_1fr_200px] md:divide-x md:divide-border max-md:divide-y max-md:divide-border">
+        {showFinale ? (
+          (() => {
+            // the finale's what-if flips the fork and replays *from* it —
+            // from the end screen a rewrite behind the folded panels would
+            // be invisible, so the clock jumps back to the choice instead
+            const gate = state.blocks.find((b) => b.kind === "choice");
+            const other =
+              gate?.kind === "choice"
+                ? gate.options.find((o) => o.id !== choices[gate.choiceId])
+                : undefined;
+            return (
+              <Finale
+                ms={ms}
+                at={state.lastEventAt}
+                scenarios={scenarios}
+                whatIf={
+                  gate?.kind === "choice" && other
+                    ? {
+                        label: other.label,
+                        flip: () => {
+                          if (sound) unlock(); // replay starts in this tap
+                          setRewrite(null);
+                          setChoices((c) => ({
+                            ...c,
+                            [gate.choiceId]: other.id,
+                          }));
+                          setMs(Math.min(gate.at + HOLD_MS, scenario.durationMs));
+                          setPlaying(true);
+                        },
+                      }
+                    : undefined
+                }
+              />
+            );
+          })()
+        ) : (
+        <div
+          className="grid md:grid-cols-[260px_1fr_200px] md:divide-x md:divide-border max-md:divide-y max-md:divide-border"
+          style={
+            takeover
+              ? { opacity: 1 - clamp01(settle(ms, state.lastEventAt)) }
+              : undefined
+          }
+        >
           {/* Mind */}
           {/* min-w-0 on every grid section: grid children default to
               min-width auto, so one long tool line would blow the tracks
@@ -1014,69 +1068,14 @@ export function Player() {
                   </span>
                 </button>
               )}
-              {/* Trilogy finale — the ticks promised a payoff; this is it.
-                  Fires on whichever run completes the set and greets every
-                  end frame after: the collection acknowledged in the voice
-                  that carried the piece, right when the reader decides
-                  whether this was worth sharing. */}
-              {state.done && trilogy && (
-                <div
-                  style={enterStyle(ms, state.lastEventAt + 500)}
-                  className="flex w-full flex-col items-center rounded-sm border border-accent/30 bg-surface px-4 py-3 text-center"
-                >
-                  {/* trophy sprite pops on the stamp's spring overshoot —
-                      40px here (the marquee twin wears the 56 crown); the
-                      verdict rows below bought their room from this card */}
-                  <span
-                    style={{
-                      transform: `scale(${settle(ms, state.lastEventAt + 700)})`,
-                    }}
-                  >
-                    <CreatureTriumph size={40} />
-                  </span>
-                  <span className="label mt-1 text-accent">
-                    all three watched
-                  </span>
-                  {/* the collection receipt — one check per run, stamped
-                      one-two-three, but each carries its verdict, not its
-                      title (the tabs above still wear the titles and
-                      ticks). This is what the reader takes out the door:
-                      the three promises from the masthead's syllabus
-                      line, earned. The rows' height came out of the trophy
-                      and the paddings, so the whole card still fits the
-                      stream without cropping the crown (the stream pins
-                      to its bottom edge). Timing: the tightest run parks
-                      2.0s after done, so every entrance below must settle
-                      by +2000ms or it freezes mid-fade at the end frame. */}
-                  <span className="mt-1 flex flex-col items-center gap-0.5">
-                    {scenarios.map((s, i) => (
-                      <span
-                        key={s.id}
-                        style={enterStyle(ms, state.lastEventAt + 900 + i * 180)}
-                        className="flex items-center gap-2 font-mono text-[12px] text-header-text"
-                      >
-                        <span className="flex h-[15px] w-[15px] items-center justify-center rounded-[3px] border border-accent/40 bg-accent/15 text-accent">
-                          <Check size={9} strokeWidth={3} />
-                        </span>
-                        {s.lesson}
-                      </span>
-                    ))}
-                  </span>
-                  <span
-                    style={enterStyle(ms, state.lastEventAt + 1450)}
-                    className="mt-2 block max-w-[28rem] font-serif text-[15px] leading-snug text-accent-light"
-                  >
-                    That&apos;s how an agent thinks, start to finish. Nothing
-                    was skipped. Next time an AI is working for you,
-                    you&apos;ll know what it&apos;s actually doing.
-                  </span>
-                </div>
-              )}
               {/* What-if — hands the reader the branch flip they'd otherwise
                   never find: from the end frame, one click rewrites the whole
                   visible story (pick() runs the unravel/cascade in place).
-                  Flips back and forth forever. */}
+                  Flips back and forth forever. Pre-trilogy only — once the
+                  set is complete the finale takeover owns the end frame and
+                  carries its own what-if (see components/Finale.tsx). */}
               {state.done &&
+                !trilogy &&
                 (() => {
                   const gate = state.blocks.find((b) => b.kind === "choice");
                   const other =
@@ -1145,6 +1144,7 @@ export function Player() {
             </div>
           </section>
         </div>
+        )}
 
         {/* Transport — ▶ is the one input. The run parks itself at each
             decision; while a question waits, play disables and the

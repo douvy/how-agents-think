@@ -113,7 +113,11 @@ education-team roundtable, the IBM agents explainer):
 
 ## Audit status
 
-- Facts 2, 3, 5, 7, 8, 9, 11 — delivered in current scripts.
-- Facts 1, 4, 6, 10, 12 — lines drafted, pending application (term-naming
-  pass: agentic loop, hallucination, context window, compacting).
-- Fact 0, M1, M2 — gaps: intro line, done lines, finale card.
+- Facts 0–12 — delivered in current scripts (term-naming pass applied:
+  agentic loop, hallucination, context window, compacting; fact 0 is the
+  intro line).
+- M1, M2 — delivered by the finale takeover (components/Finale.tsx): it
+  states them, and its exit *is* the scrub-back.
+- Vocab recall — the takeover's "words you now own" row repeats all six
+  promised words on the way out; each run names its words once
+  (recognition), the finale is the second pass (recall).
