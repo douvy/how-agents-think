@@ -1,4 +1,4 @@
-import type { TimelineState } from "@/lib/timeline";
+import { CONTEXT_BUDGET, type TimelineState } from "@/lib/timeline";
 
 // The agent's face. Every frame is a pure function of (state, ms) —
 // discrete pixel frames, no easing. Scrub backward and it un-winces.
@@ -9,9 +9,17 @@ import type { TimelineState } from "@/lib/timeline";
 //   setback    — a tool just failed: red !, ears flatten, red wince
 //   compacting — right after a compact: eyes squeezed shut, ears flat
 //   asking     — a choice is live: yellow ?, ears up, steady eyes on you
+//   panic      — memory near the ceiling: trembling, arms flailing, sweat
 //   done       — ears up, eyes open, small smile
 
-type Mood = "done" | "setback" | "compacting" | "asking" | "focus" | "idle";
+type Mood =
+  | "done"
+  | "setback"
+  | "compacting"
+  | "asking"
+  | "panic"
+  | "focus"
+  | "idle";
 
 const BODY = "#3a3f4a";
 const PATCH = "#555b68";
@@ -37,6 +45,10 @@ function moodOf(state: TimelineState, ms: number): Mood {
   }
   if (state.blocks.some((b) => b.kind === "choice" && b.picked === undefined))
     return "asking";
+  // He starts sweating just before the meter goes red — the worker feels
+  // the ceiling before the gauge admits it. Outranks focus: you can't
+  // type calmly at 90% memory.
+  if (state.tokens > CONTEXT_BUDGET * 0.88) return "panic";
   if (state.blocks.some((b) => b.kind === "tool" && b.pending)) return "focus";
   return "idle";
 }
@@ -145,7 +157,14 @@ export function Creature({
     dy = Math.floor(ms / 820) % 2;
   }
 
-  const earsFlat = mood === "setback" || mood === "compacting";
+  const earsFlat =
+    mood === "setback" || mood === "compacting" || mood === "panic";
+
+  // Panic runs on faster clocks than everything else — a 90ms whole-body
+  // tremble and a 140ms arm flail, out of phase so he reads as scrambling,
+  // not vibrating. Same discrete frames, still pure f(ms).
+  const shake = mood === "panic" ? (Math.floor(ms / 90) % 2 ? 1 : -1) : 0;
+  const flail = Math.floor(ms / 140) % 2 === 0;
 
   let dx = 0;
   let eyeY = 6;
@@ -161,6 +180,12 @@ export function Creature({
   } else if (mood === "compacting") {
     eyeY = 7;
     eyeH = 1;
+  } else if (mood === "panic") {
+    // eyes blown wide, arms flailing overhead
+    eyeY = 5;
+    eyeH = 3;
+    leftArmY = flail ? 1 : 3;
+    rightArmY = flail ? 3 : 1;
   } else if (mood === "focus") {
     eyeY = 7;
     eyeH = 1;
@@ -185,7 +210,7 @@ export function Creature({
       aria-hidden
       style={{ overflow: "visible" }} // hops cross the viewBox top by 1px
     >
-      <g transform={`translate(0 ${dy})`}>
+      <g transform={`translate(${shake} ${dy})`}>
       {/* thought dots, rising up-right while idle — but not at the parked
           landing frame: frozen at ms=0 a single dot reads as a stray pixel
           on his head, not a thought. He waits clean-headed; the dots start
@@ -203,6 +228,17 @@ export function Creature({
         <g fill={RED}>
           <rect x="8" y="0" width="1" height="2" />
           <rect x="8" y="3" width="1" height="1" />
+        </g>
+      )}
+
+      {/* panic: sweat flicking off alternating sides of his head */}
+      {mood === "panic" && (
+        <g fill="#eceae0">
+          {flail ? (
+            <rect x="2" y="1" width="1" height="1" />
+          ) : (
+            <rect x="13" y="0" width="1" height="1" />
+          )}
         </g>
       )}
 
@@ -247,6 +283,8 @@ export function Creature({
       <rect x={5 + dx} y={eyeY} width="2" height={eyeH} fill={eyeFill} />
       <rect x={9 + dx} y={eyeY} width="2" height={eyeH} fill={eyeFill} />
       {mood === "done" && <rect x="6" y="8" width="4" height="1" fill={BODY} />}
+      {/* panic: little open mouth under the blown-wide eyes */}
+      {mood === "panic" && <rect x="7" y="8" width="2" height="1" fill={BODY} />}
       </g>
     </svg>
   );

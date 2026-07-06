@@ -1322,7 +1322,18 @@ export function Player() {
                 / {CONTEXT_BUDGET.toLocaleString()} tokens
               </div>
               <div className="relative h-1 flex-1 bg-hover-bg md:mt-3 md:w-full md:flex-none">
-                <div className={`h-full ${gaugeColor}`} style={{ width: `${pct * 100}%` }} />
+                {/* in the red the bar blinks — a steps() beat computed from
+                    ms, so it stays pure and freezes honestly when paused.
+                    Dread before the compact's relief; the mascot panics on
+                    the same climb. */}
+                <div
+                  className={`h-full ${gaugeColor}`}
+                  style={{
+                    width: `${pct * 100}%`,
+                    opacity:
+                      pct > 0.9 && !reducedMotion && ms % 460 > 230 ? 0.4 : 1,
+                  }}
+                />
                 {/* threshold notches: warning at 75%, danger at 90% */}
                 <span aria-hidden className="absolute top-0 left-3/4 h-full w-px bg-[#4d525e]" />
                 <span aria-hidden className="absolute top-0 left-[90%] h-full w-px bg-[#4d525e]" />
