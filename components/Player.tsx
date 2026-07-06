@@ -819,6 +819,11 @@ export function Player() {
   // entrance plus the reading (400 + words × 300ms). Wall-clock only —
   // scrubbing never dwells, and ms-purity is untouched. Choices park via
   // gates; done ends the clock, so neither dwells.
+  //
+  // Thoughts dwell too, on their own text. They never reach the marquee,
+  // so without the park a forty-word thought (fact 4 rides one) gets two
+  // seconds before the next block takes the eye. Same formula: the words
+  // set the wait.
   useEffect(() => {
     if (!playing) return;
     const gates = scenario.events
@@ -828,19 +833,23 @@ export function Player() {
     const dwells = scenario.events
       .filter(
         (e) =>
-          e.narration &&
-          isChapterBeat(e) &&
-          e.type !== "choice" &&
-          e.type !== "done" &&
+          (e.type === "thought" ||
+            (e.narration &&
+              isChapterBeat(e) &&
+              e.type !== "choice" &&
+              e.type !== "done")) &&
           eventActive(e, resolved),
       )
-      .map((e) => ({
-        at: Math.min(e.at + HOLD_MS, scenario.durationMs),
-        wait: Math.max(
-          1200,
-          400 + e.narration!.split(/\s+/).filter((w) => /\w/.test(w)).length * 300,
-        ),
-      }));
+      .map((e) => {
+        const read = e.type === "thought" ? e.text : e.narration!;
+        return {
+          at: Math.min(e.at + HOLD_MS, scenario.durationMs),
+          wait: Math.max(
+            1200,
+            400 + read.split(/\s+/).filter((w) => /\w/.test(w)).length * 300,
+          ),
+        };
+      });
     let dwellUntil = 0;
     let raf = 0;
     let last = performance.now();
@@ -1051,6 +1060,19 @@ export function Player() {
   const pct = clamp01(displayTokens / CONTEXT_BUDGET);
   const gaugeColor =
     pct > 0.9 ? "bg-accent-negative" : pct > 0.75 ? "bg-warning" : "bg-accent";
+
+  // "Watch the gauge" — a narration never names a surface without the
+  // surface answering. Beats tagged cue: "memory" blink an accent frame
+  // around the panel as the caption lands: three blinks, the same steps()
+  // vocabulary as the red-zone bar. Pure f(ms), so scrubbing back through
+  // the beat replays the wink; reduced motion holds the frame steady.
+  let cueT = Infinity;
+  for (const e of scenario.events) {
+    if (e.at > ms) break;
+    if (e.cue === "memory" && eventActive(e, resolved)) cueT = ms - e.at;
+  }
+  const cueOn =
+    cueT < 2200 && (reducedMotion || Math.floor(cueT / 370) % 2 === 0);
 
   return (
     <>
@@ -1527,7 +1549,13 @@ export function Player() {
           </section>
 
           {/* Context gauge — stats cell */}
-          <section className="flex min-w-0 flex-col max-md:order-2">
+          <section className="relative flex min-w-0 flex-col max-md:order-2">
+            {cueOn && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-10 border border-accent"
+              />
+            )}
             <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-1.5">
               <span className="label">memory</span>
               <span className="font-mono text-[10px] text-[#a9adb6]">

@@ -95,7 +95,7 @@ export const fridge: Scenario = {
       takeaway: [
         "I wrote the plan first — writing things down is how I think.",
         "I never saw your kitchen — I only knew what each look reported.",
-        "I looked up the swap because a memory and a guess feel the same to me.",
+        "I looked up the swap — answering from a guess is a hallucination.",
       ] },
   ],
 };

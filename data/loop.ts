@@ -102,7 +102,7 @@ export const loop: Scenario = {
       takeaway: [
         "I wrote the plan first — writing things down is how I think.",
         "I never saw the code — I only knew what each tool brought back.",
-        "I reran the test because a fix that feels right proves nothing.",
+        "I read the file first — acting on a guess is a hallucination.",
       ] },
   ],
 };

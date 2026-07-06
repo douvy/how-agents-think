@@ -25,6 +25,9 @@ export type TimelineEvent = {
   at: number;
   tokensAfter: number;
   narration?: string;
+  /** When a narration names a panel ("watch the gauge"), the panel answers:
+      the named surface acknowledges the beat with a brief pulse. */
+  cue?: "memory";
   /** Branch beats fire only when the named choice resolved to this option. */
   branch?: { choice: string; option: string };
 } & (
