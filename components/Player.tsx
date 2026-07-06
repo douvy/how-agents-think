@@ -297,12 +297,16 @@ function StreamBlock({
   ms,
   onPick,
   exitFactor,
+  escape,
 }: {
   block: Block;
   ms: number;
   onPick?: (choiceId: string, option: string) => void;
   /** Branch-rewrite exit: 1 → 0 as the old future unravels. */
   exitFactor?: number;
+  /** Run-opening gates only: the other runs, as a way out for a reader
+      who doesn't care about this task and hasn't found the tabs. */
+  escape?: { title: string; task: string; go: () => void }[];
 }) {
   // Absorption (compaction): block squeezes to nothing as the spring settles.
   const absorbedAt =
@@ -429,6 +433,7 @@ function StreamBlock({
     // the pick rewrites everything downstream.
     const pending = block.picked === undefined;
     return (
+      <>
       <div
         style={enterStyle(ms, block.at)}
         className={`relative overflow-hidden rounded-sm px-3 py-2.5 ${
@@ -483,6 +488,31 @@ function StreamBlock({
           </div>
         )}
       </div>
+      {/* the escape hatch — its own block below the card, because it's a
+          different thing: the card is the agent's question, this is the
+          player's exit row. Product register (mono, muted); each run
+          shows its task so the choice is between stories, not mystery
+          titles. Enters with the card, gone once the gate is answered. */}
+      {pending && escape && (
+        <div
+          style={enterStyle(ms, block.at)}
+          className="font-mono text-[11px] text-[#a9adb9]"
+        >
+          <div>not interested in these tasks?</div>
+          {escape.map((e) => (
+            <div key={e.title} className="mt-1">
+              <button
+                onClick={e.go}
+                className="underline decoration-white/20 underline-offset-2 hover:text-header-text hover:decoration-white"
+              >
+                {e.title}
+              </button>
+              <span className="text-[#7b7e8a]"> — “{e.task}”</span>
+            </div>
+          ))}
+        </div>
+      )}
+      </>
     );
   }
 
@@ -1057,6 +1087,19 @@ export function Player() {
             clamp01(settle(rewriteT, REWRITE.gaugeAt)),
       )
     : Math.round(state.tokensPrev + (state.tokens - state.tokensPrev) * gaugeProgress);
+  // The opening gate's escape hatch — a reader parked at :03 who doesn't
+  // care about this task has no visible exit unless they've found the
+  // tabs, so the gate itself offers the other two runs. Mid-run gates
+  // never get one: forty seconds in, the reader is invested, and an exit
+  // there only invites leaving. Links use tab semantics (select), so the
+  // abandoned run parks and play state carries over.
+  const escapeFor = (b: Block) =>
+    b.kind === "choice" && b.at < 10000
+      ? scenarios
+          .map((s, i) => ({ title: s.title, task: s.task, go: () => select(i) }))
+          .filter((_, i) => i !== idx)
+      : undefined;
+
   const pct = clamp01(displayTokens / CONTEXT_BUDGET);
   const gaugeColor =
     pct > 0.9 ? "bg-accent-negative" : pct > 0.75 ? "bg-warning" : "bg-accent";
@@ -1424,10 +1467,21 @@ export function Player() {
                   />
                 ) : it.enterDelay !== undefined ? (
                   <div key={it.key} style={enterStyle(rewriteT, it.enterDelay)}>
-                    <StreamBlock block={it.block} ms={ms} onPick={pick} />
+                    <StreamBlock
+                      block={it.block}
+                      ms={ms}
+                      onPick={pick}
+                      escape={escapeFor(it.block)}
+                    />
                   </div>
                 ) : (
-                  <StreamBlock key={it.key} block={it.block} ms={ms} onPick={pick} />
+                  <StreamBlock
+                    key={it.key}
+                    block={it.block}
+                    ms={ms}
+                    onPick={pick}
+                    escape={escapeFor(it.block)}
+                  />
                 ),
               )}
               {state.blocks.length === 0 && (
